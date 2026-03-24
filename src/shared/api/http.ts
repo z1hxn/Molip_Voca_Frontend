@@ -54,10 +54,6 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     token = data.session?.access_token || null
   }
 
-  if (auth === 'required' && !token) {
-    throw new Error('로그인이 필요합니다.')
-  }
-
   const cacheKey = isGetRequest ? buildCacheKey(method, path, token) : null
   const now = Date.now()
 
@@ -77,6 +73,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,
       method,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -17,6 +17,30 @@ interface AuthState {
 
 let initialized = false
 
+const syncServerSessionCookie = async () => {
+  try {
+    await apiRequest('/auth/session', {
+      method: 'POST',
+      auth: 'required',
+      cacheTtlMs: 0,
+    })
+  } catch {
+    // ignore cookie sync failures
+  }
+}
+
+const clearServerSessionCookie = async () => {
+  try {
+    await apiRequest('/auth/logout', {
+      method: 'POST',
+      auth: 'none',
+      cacheTtlMs: 0,
+    })
+  } catch {
+    // ignore cookie clear failures
+  }
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   session: null,
@@ -32,6 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
       try {
+        await syncServerSessionCookie()
         const profile = await apiRequest<User>('/auth/me', { auth: 'required' })
         set({ user: profile, session, loading: false })
       } catch {
@@ -44,12 +69,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
       if (session?.user) {
         try {
+          await syncServerSessionCookie()
           const profile = await apiRequest<User>('/auth/me', { auth: 'required' })
           set({ user: profile, session })
         } catch {
           set({ user: null, session: null })
         }
       } else {
+        await clearServerSessionCookie()
         set({ user: null, session: null })
       }
     })
@@ -90,10 +117,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   signIn: async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
+    await syncServerSessionCookie()
     return { error: null }
   },
 
   signOut: async () => {
+    await clearServerSessionCookie()
     await supabase.auth.signOut()
     set({ user: null, session: null })
   },
