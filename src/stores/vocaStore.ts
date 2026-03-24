@@ -114,7 +114,7 @@ export const useVocaStore = create<VocaState>((set, get) => ({
   },
 
   fetchCommunityVocaSets: async () => {
-    const fetched = await apiRequest<VocaSet[]>('/community/vocas')
+    const fetched = await apiRequest<VocaSet[]>('/community/vocas', { auth: 'optional' })
     const communityVocaSets = fetched.map(normalizeVocaSet)
     set({ communityVocaSets })
     return communityVocaSets
@@ -123,7 +123,7 @@ export const useVocaStore = create<VocaState>((set, get) => ({
   fetchVocaSet: async (id) => {
     set({ loading: true })
     try {
-      const voca = normalizeVocaSet(await apiRequest<VocaSet>(`/vocas/${id}`))
+      const voca = normalizeVocaSet(await apiRequest<VocaSet>(`/vocas/${id}`, { auth: 'optional' }))
       set({ currentVoca: voca, loading: false })
     } catch {
       set({ currentVoca: null, loading: false })
@@ -144,7 +144,7 @@ export const useVocaStore = create<VocaState>((set, get) => ({
 
   fetchMyRole: async (vocaId) => {
     try {
-      const data = await apiRequest<ApiRoleResponse>(`/vocas/${vocaId}/role`)
+      const data = await apiRequest<ApiRoleResponse>(`/vocas/${vocaId}/role`, { auth: 'optional' })
       return data.role
     } catch {
       return null

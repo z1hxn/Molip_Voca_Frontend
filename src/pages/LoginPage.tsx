@@ -7,8 +7,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resetMessage, setResetMessage] = useState('')
+  const [resetting, setResetting] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { signIn } = useAuthStore()
+  const { signIn, requestPasswordReset } = useAuthStore()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,6 +25,19 @@ export default function LoginPage() {
     } else {
       navigate('/')
     }
+  }
+
+  const handleResetPassword = async () => {
+    setResetError('')
+    setResetMessage('')
+    setResetting(true)
+    const result = await requestPasswordReset(email)
+    setResetting(false)
+    if (result.error) {
+      setResetError(result.error)
+      return
+    }
+    setResetMessage('비밀번호 재설정 메일을 보냈습니다. 메일함을 확인해 주세요.')
   }
 
   return (
@@ -54,7 +70,7 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-border bg-bg text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-              placeholder="you@example.com"
+              placeholder="이메일 주소 입력"
               required
             />
           </div>
@@ -78,6 +94,23 @@ export default function LoginPage() {
           >
             {loading ? '로그인 중...' : '로그인'}
           </button>
+
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => void handleResetPassword()}
+              disabled={resetting}
+              className="text-sm text-primary font-medium hover:underline disabled:opacity-50"
+            >
+              {resetting ? '재설정 메일 전송 중...' : '비밀번호를 잊으셨나요?'}
+            </button>
+            {resetError && (
+              <p className="mt-2 text-sm text-danger">{resetError}</p>
+            )}
+            {resetMessage && (
+              <p className="mt-2 text-sm text-success">{resetMessage}</p>
+            )}
+          </div>
         </form>
 
         <p className="text-center text-sm text-text-secondary mt-4">

@@ -18,6 +18,7 @@ const resolveHeaderTitle = (pathname: string) => {
     { pattern: '/folder/:id', title: '폴더' },
     { pattern: '/shared/:shareToken', title: '공유 단어장' },
     { pattern: '/account', title: '계정 설정' },
+    { pattern: '/reset-password', title: '비밀번호 재설정' },
   ]
 
   for (const item of matchedTitles) {
@@ -26,6 +27,7 @@ const resolveHeaderTitle = (pathname: string) => {
 
   if (pathname === '/register') return '회원가입'
   if (pathname === '/login') return '로그인'
+  if (pathname === '/reset-password') return '비밀번호 재설정'
   return '단어장'
 }
 
@@ -44,14 +46,21 @@ export default function Layout() {
   const isRoot = location.pathname === '/'
   const isTopLevelTabPage =
     location.pathname === '/' || location.pathname === '/community' || location.pathname === '/account'
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register'
+  const isAuthPage =
+    location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/reset-password'
   const isSharedPage = Boolean(matchPath({ path: '/shared/:shareToken', end: true }, location.pathname))
   const canGoBack = !isTopLevelTabPage && !isAuthPage
   const activePrimaryTab = resolvePrimaryTab(location.pathname)
-  const showMobileTabBar = Boolean(user) && !isSharedPage
+  const showMobileTabBar = !isSharedPage
   const title = resolveHeaderTitle(location.pathname)
 
-  const handleBack = () => navigate(-1)
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate('/')
+  }
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
@@ -60,8 +69,25 @@ export default function Layout() {
   if (isAuthPage) {
     return (
       <div className="min-h-screen bg-bg">
-        <div className="w-full max-w-[680px] mx-auto min-h-screen px-4 py-6">
-          <Outlet />
+        <div className="w-full max-w-[680px] mx-auto min-h-screen bg-bg sm:border-x sm:border-border/70">
+          <nav className="bg-surface/95 backdrop-blur border-b border-border sticky top-0 z-50">
+            <div className="h-14 grid grid-cols-[48px_1fr_48px] items-center px-1">
+              <div className="flex justify-center">
+                <button
+                  onClick={handleBack}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:text-text hover:bg-bg transition-colors"
+                  aria-label="뒤로가기"
+                >
+                  <Icon name="chevronLeft" size={18} />
+                </button>
+              </div>
+              <h1 className="text-sm font-semibold text-center truncate px-2">{title}</h1>
+              <div className="w-9 h-9" />
+            </div>
+          </nav>
+          <main className="px-4 py-6">
+            <Outlet />
+          </main>
         </div>
       </div>
     )
@@ -120,21 +146,43 @@ export default function Layout() {
                   <Icon name="user" size={15} className="text-text-secondary" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{user?.username || '사용자'}</p>
-                  <p className="text-xs text-text-secondary truncate">{user?.email || '-'}</p>
+                  <p className="text-sm font-medium truncate">{user?.username || '게스트'}</p>
+                  <p className="text-xs text-text-secondary truncate">{user?.email || '로그인해서 내 단어장을 관리하세요'}</p>
                 </div>
               </div>
-              <button
-                onClick={() => void handleSignOut()}
-                className="w-full mt-1 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl border border-border text-sm text-text-secondary hover:border-primary transition-colors"
-              >
-                <Icon name="logOut" size={14} />
-                로그아웃
-              </button>
+              {user ? (
+                <button
+                  onClick={() => void handleSignOut()}
+                  className="w-full mt-1 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl border border-border text-sm text-text-secondary hover:border-primary transition-colors"
+                >
+                  <Icon name="logOut" size={14} />
+                  로그아웃
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full mt-1 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors"
+                >
+                  <Icon name="user" size={14} />
+                  로그인
+                </button>
+              )}
             </div>
           </aside>
 
           <main className="min-w-0">
+            {canGoBack && (
+              <div className="sticky top-6 z-20 mb-4 bg-surface/95 backdrop-blur rounded-2xl border border-border px-3 py-2.5 inline-flex items-center gap-2">
+                <button
+                  onClick={handleBack}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-text-secondary hover:text-text hover:bg-bg transition-colors"
+                  aria-label="뒤로가기"
+                >
+                  <Icon name="chevronLeft" size={17} />
+                </button>
+                <p className="font-semibold">{title}</p>
+              </div>
+            )}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
               <Outlet />
             </motion.div>
@@ -165,7 +213,10 @@ export default function Layout() {
 
             <div className="flex items-center justify-center">
               {isRoot ? (
-                <img src="/logo.png" alt="Molip" className="h-8 w-auto" />
+                <div className="inline-flex items-center gap-2">
+                  <img src="/logo.png" alt="Molip" className="h-8 w-auto" />
+                  <span className="text-lg font-bold text-primary tracking-tight">몰입 보카</span>
+                </div>
               ) : (
                 <h1 className="text-sm font-semibold text-center truncate px-2">{title}</h1>
               )}

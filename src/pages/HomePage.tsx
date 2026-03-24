@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVocaStore } from '@/features/voca/model/vocaStore'
+import { useAuthStore } from '@/features/auth/model/authStore'
 import Card from '@/shared/ui/Card'
 import Modal from '@/shared/ui/Modal'
 import EmptyState from '@/shared/ui/EmptyState'
@@ -9,6 +10,7 @@ import PageSkeleton from '@/shared/ui/PageSkeleton'
 import { useViewportMode } from '@/shared/lib/useViewportMode'
 
 export default function HomePage() {
+  const { user } = useAuthStore()
   const {
     folders,
     vocaSets,
@@ -31,13 +33,18 @@ export default function HomePage() {
   const [newVoca, setNewVoca] = useState({ title: '', description: '', folder_id: '' })
 
   const reload = useCallback(async () => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       await Promise.all([fetchFolders(), fetchVocaSets()])
     } finally {
       setLoading(false)
     }
-  }, [fetchFolders, fetchVocaSets])
+  }, [user, fetchFolders, fetchVocaSets])
 
   useEffect(() => {
     void reload()
@@ -127,6 +134,38 @@ export default function HomePage() {
     return <PageSkeleton variant="home" cards={5} />
   }
 
+  if (!user) {
+    return (
+      <div className="space-y-4 pb-20 sm:pb-0">
+        <Card>
+          <EmptyState
+            icon={<Icon name="user" size={44} />}
+            title="로그인 없이 커뮤니티와 퀴즈를 이용할 수 있어요"
+            description="내 단어장 생성/편집은 로그인 후 사용할 수 있습니다."
+            action={(
+              <div className="inline-flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="inline-flex items-center gap-1 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-primary-dark transition-colors"
+                >
+                  <Icon name="user" size={14} />
+                  로그인
+                </button>
+                <button
+                  onClick={() => navigate('/community')}
+                  className="inline-flex items-center gap-1 px-5 py-2.5 rounded-xl border border-border bg-bg text-text-secondary font-medium hover:border-primary transition-colors"
+                >
+                  <Icon name="users" size={14} />
+                  커뮤니티 보기
+                </button>
+              </div>
+            )}
+          />
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -184,9 +223,9 @@ export default function HomePage() {
                   </>
                 ) : (
                   <button
-                    onClick={() => navigate(`/voca/${item.voca.id}/edit`)}
+                    onClick={() => navigate(`/voca/${item.voca.id}/settings`)}
                     className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:border-primary transition-colors"
-                    title="단어 추가"
+                    title="단어장 설정"
                   >
                     <Icon name="edit" size={14} />
                   </button>
@@ -235,47 +274,15 @@ export default function HomePage() {
       ) : (
         <div className="space-y-3">
           {explorerItems.map((item) => (
-            <div key={item.id} className="w-full text-left rounded-2xl border border-border bg-surface p-5 hover:border-primary/40 transition-colors">
-              <div className="flex justify-end mb-2 gap-1">
-                {item.kind === 'folder' ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        setEditingFolder(item.folder.id)
-                        setFolderName(item.folder.name)
-                        setShowFolderModal(true)
-                      }}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:border-primary transition-colors"
-                      title="폴더 수정"
-                    >
-                      <Icon name="edit" size={14} />
-                    </button>
-                    <button
-                      onClick={() => void handleDeleteFolder(item.folder.id)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:text-danger hover:border-danger/50 transition-colors"
-                      title="폴더 삭제"
-                    >
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => navigate(`/voca/${item.voca.id}/edit`)}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:border-primary transition-colors"
-                    title="단어 추가"
-                  >
-                    <Icon name="edit" size={14} />
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => navigate(item.kind === 'folder' ? `/folder/${item.folder.id}` : `/voca/${item.voca.id}`)}
-                className="w-full text-left"
-              >
-                <div className="flex items-start justify-between gap-3">
+            <div key={item.id} className="w-full rounded-2xl border border-border bg-surface p-4 hover:border-primary/40 transition-colors">
+              <div className="flex items-start justify-between gap-3">
+                <button
+                  onClick={() => navigate(item.kind === 'folder' ? `/folder/${item.folder.id}` : `/voca/${item.voca.id}`)}
+                  className="flex-1 min-w-0 text-left"
+                >
                   <div className="min-w-0">
-                    <div className="inline-flex items-center gap-1.5 text-lg font-semibold">
-                      <Icon name={item.kind === 'folder' ? 'folder' : 'book'} size={17} />
+                    <div className="inline-flex items-center gap-1.5 text-base font-semibold">
+                      <Icon name={item.kind === 'folder' ? 'folder' : 'book'} size={16} />
                       <span className="truncate">{item.kind === 'folder' ? item.folder.name : item.voca.title}</span>
                     </div>
                     {item.kind === 'voca' && item.voca.description && (
@@ -287,27 +294,60 @@ export default function HomePage() {
                       </p>
                     )}
                   </div>
-                  <Icon name="chevronRight" size={16} className="mt-1 text-text-secondary shrink-0" />
-                </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {item.kind === 'voca' && item.voca.share_scope === 'public' && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary">
-                      <Icon name="globe" size={12} />
-                      공개
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {item.kind === 'voca' && item.voca.share_scope === 'public' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary">
+                        <Icon name="globe" size={12} />
+                        공개
+                      </span>
+                    )}
+                    {item.kind === 'voca' && item.voca.share_scope === 'unlisted' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-bg border border-border text-text-secondary">
+                        <Icon name="link" size={12} />
+                        일부공개
+                      </span>
+                    )}
+                    <span className="text-xs text-text-secondary">
+                      {new Date(item.kind === 'folder' ? item.folder.created_at : item.voca.updated_at).toLocaleDateString('ko-KR')}
                     </span>
+                  </div>
+                </button>
+
+                <div className="inline-flex items-center gap-1 shrink-0 pt-0.5">
+                  {item.kind === 'folder' ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingFolder(item.folder.id)
+                          setFolderName(item.folder.name)
+                          setShowFolderModal(true)
+                        }}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:border-primary transition-colors"
+                        title="폴더 수정"
+                      >
+                        <Icon name="edit" size={14} />
+                      </button>
+                      <button
+                        onClick={() => void handleDeleteFolder(item.folder.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:text-danger hover:border-danger/50 transition-colors"
+                        title="폴더 삭제"
+                      >
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => navigate(`/voca/${item.voca.id}/settings`)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border text-text-secondary hover:border-primary transition-colors"
+                      title="단어장 설정"
+                    >
+                      <Icon name="edit" size={14} />
+                    </button>
                   )}
-                  {item.kind === 'voca' && item.voca.share_scope === 'unlisted' && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-bg border border-border text-text-secondary">
-                      <Icon name="link" size={12} />
-                      일부공개
-                    </span>
-                  )}
-                  <span className="text-xs text-text-secondary">
-                    {new Date(item.kind === 'folder' ? item.folder.created_at : item.voca.updated_at).toLocaleDateString('ko-KR')}
-                  </span>
+                  <Icon name="chevronRight" size={16} className="text-text-secondary" />
                 </div>
-              </button>
+              </div>
             </div>
           ))}
         </div>

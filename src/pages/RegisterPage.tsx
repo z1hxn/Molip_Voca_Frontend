@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/features/auth/model/authStore'
 
@@ -8,13 +8,14 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const { signUp } = useAuthStore()
-  const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccessMessage('')
     if (password.length < 6) {
       setError('비밀번호는 6자 이상이어야 합니다')
       return
@@ -25,7 +26,8 @@ export default function RegisterPage() {
     if (result.error) {
       setError(result.error)
     } else {
-      navigate('/')
+      setSuccessMessage(`인증 메일을 보냈습니다. (${email}) 메일함을 확인해 주세요.`)
+      setPassword('')
     }
   }
 
@@ -42,6 +44,15 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-surface rounded-2xl border border-border p-6 space-y-4">
+          {successMessage && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="bg-success/10 text-success text-sm rounded-lg p-3"
+            >
+              {successMessage}
+            </motion.div>
+          )}
           {error && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -71,7 +82,7 @@ export default function RegisterPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-border bg-bg text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-              placeholder="you@example.com"
+              placeholder="이메일 주소 입력"
               required
             />
           </div>

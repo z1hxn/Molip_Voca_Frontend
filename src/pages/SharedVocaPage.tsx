@@ -89,6 +89,15 @@ export default function SharedVocaPage() {
         <div className="text-sm text-text-secondary mt-2">
           공유자: {currentVoca.owner?.username || '알 수 없음'} · {words.length}개 단어
         </div>
+        {words.length > 0 && (
+          <button
+            onClick={() => navigate(`/study/${currentVoca.id}`)}
+            className="mt-3 inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-primary-dark transition-colors"
+          >
+            <Icon name="play" size={15} />
+            이 단어장으로 퀴즈 시작
+          </button>
+        )}
       </div>
 
       <Card className="bg-primary/5 border-primary/20">

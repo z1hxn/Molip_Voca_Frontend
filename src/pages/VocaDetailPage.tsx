@@ -8,6 +8,7 @@ import type { Word } from '@/shared/types'
 import { splitMeanings } from '@/shared/lib/meaning'
 import { useVocaStore } from '@/features/voca/model/vocaStore'
 import { useStudyStore } from '@/features/study/model/studyStore'
+import { useAuthStore } from '@/features/auth/model/authStore'
 
 type AccessRole = 'owner' | 'editor' | 'viewer' | null
 
@@ -28,6 +29,7 @@ const nextStatus = (status: WordStatus): WordStatus => {
 export default function VocaDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const {
     currentVoca,
     words,
@@ -50,14 +52,15 @@ export default function VocaDetailPage() {
       setPageLoading(true)
       setAccessRole(null)
       try {
-        const [, , role] = await Promise.all([fetchVocaSet(id), fetchWords(id), fetchMyRole(id)])
+        const rolePromise = user ? fetchMyRole(id) : Promise.resolve(null)
+        const [, , role] = await Promise.all([fetchVocaSet(id), fetchWords(id), rolePromise])
         setAccessRole(role)
       } finally {
         setPageLoading(false)
       }
     }
     void load()
-  }, [id, fetchVocaSet, fetchWords, fetchMyRole])
+  }, [id, user, fetchVocaSet, fetchWords, fetchMyRole])
 
   useEffect(() => {
     if (words.length === 0) return
@@ -66,6 +69,18 @@ export default function VocaDetailPage() {
 
   const isOwner = accessRole === 'owner'
   const canEdit = accessRole === 'owner' || accessRole === 'editor'
+
+  const handleAddWord = () => {
+    if (!id) return
+    if (!user) {
+      if (confirm('단어를 추가하려면 로그인이 필요합니다. 로그인 페이지로 이동할까요?')) {
+        navigate('/login')
+      }
+      return
+    }
+    if (!canEdit) return
+    navigate(`/voca/${id}/edit`)
+  }
 
   const handleCycleStatus = async (word: Word) => {
     const current = getWordStatus(word.id) as WordStatus
@@ -105,9 +120,9 @@ export default function VocaDetailPage() {
             학습 시작
           </button>
         )}
-        {canEdit && (
+        {(canEdit || !user) && (
           <button
-            onClick={() => navigate(`/voca/${id}/edit`)}
+            onClick={handleAddWord}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium border border-border bg-bg text-text-secondary hover:border-primary transition-colors"
           >
             <Icon name="edit" size={15} />
@@ -129,7 +144,13 @@ export default function VocaDetailPage() {
         <EmptyState
           icon={<Icon name="file" size={44} />}
           title="등록된 단어가 없습니다"
-          description={canEdit ? '단어 추가 페이지에서 첫 단어를 등록하세요.' : '편집 권한이 있는 사용자만 단어를 추가할 수 있습니다.'}
+          description={
+            !user
+              ? '로그인 후 단어를 추가할 수 있습니다. 비회원은 학습만 가능합니다.'
+              : canEdit
+                ? '단어 추가 페이지에서 첫 단어를 등록하세요.'
+                : '편집 권한이 있는 사용자만 단어를 추가할 수 있습니다.'
+          }
         />
       ) : (
         <div className="space-y-2">

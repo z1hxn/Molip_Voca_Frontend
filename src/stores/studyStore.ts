@@ -235,10 +235,15 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       answerHistory: [...answerHistory, history],
     })
 
-    await apiRequest('/study/answer', {
-      method: 'POST',
-      body: JSON.stringify({ wordId: currentItem.word.id, correct }),
-    })
+    try {
+      await apiRequest('/study/answer', {
+        method: 'POST',
+        auth: 'optional',
+        body: JSON.stringify({ wordId: currentItem.word.id, correct }),
+      })
+    } catch {
+      // Guest mode keeps local quiz flow without server persistence.
+    }
   },
 
   undoLastAnswer: async () => {
@@ -255,18 +260,28 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       answerHistory: answerHistory.slice(0, -1),
     })
 
-    await apiRequest('/study/undo-answer', {
-      method: 'POST',
-      body: JSON.stringify({ wordId: last.wordId, correct: last.correct }),
-    })
+    try {
+      await apiRequest('/study/undo-answer', {
+        method: 'POST',
+        auth: 'optional',
+        body: JSON.stringify({ wordId: last.wordId, correct: last.correct }),
+      })
+    } catch {
+      // Guest mode keeps local quiz flow without server persistence.
+    }
     return last.swipeDirection
   },
 
   markWordStatus: async (wordId, status) => {
-    await apiRequest('/study/mark', {
-      method: 'POST',
-      body: JSON.stringify({ wordId, status }),
-    })
+    try {
+      await apiRequest('/study/mark', {
+        method: 'POST',
+        auth: 'optional',
+        body: JSON.stringify({ wordId, status }),
+      })
+    } catch {
+      // Guest mode keeps local status only.
+    }
 
     const progressMap = new Map(get().progress)
     const current = progressMap.get(wordId)
@@ -310,30 +325,44 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     const { score, total, startTime, mode } = get()
     const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
 
-    await apiRequest('/study/sessions', {
-      method: 'POST',
-      body: JSON.stringify({
-        vocaId,
-        mode,
-        score,
-        total,
-        duration,
-      }),
-    })
+    try {
+      await apiRequest('/study/sessions', {
+        method: 'POST',
+        auth: 'optional',
+        body: JSON.stringify({
+          vocaId,
+          mode,
+          score,
+          total,
+          duration,
+        }),
+      })
+    } catch {
+      // Guest mode skips saving.
+    }
   },
 
   fetchProgress: async (wordIds) => {
     if (wordIds.length === 0) return
-    const data = await apiRequest<WordProgress[]>(
-      `/study/progress?wordIds=${encodeURIComponent(wordIds.join(','))}`
-    )
+    try {
+      const data = await apiRequest<WordProgress[]>(
+        `/study/progress?wordIds=${encodeURIComponent(wordIds.join(','))}`,
+        { auth: 'optional' }
+      )
 
-    const progressMap = new Map<string, WordProgress>()
-    data.forEach((progress) => progressMap.set(progress.word_id, progress))
-    set({ progress: progressMap })
+      const progressMap = new Map<string, WordProgress>()
+      data.forEach((progress) => progressMap.set(progress.word_id, progress))
+      set({ progress: progressMap })
+    } catch {
+      set({ progress: new Map() })
+    }
   },
 
   fetchStats: async (vocaId) => {
-    return apiRequest<StudySession[]>(`/study/sessions?vocaId=${encodeURIComponent(vocaId)}`)
+    try {
+      return await apiRequest<StudySession[]>(`/study/sessions?vocaId=${encodeURIComponent(vocaId)}`, { auth: 'optional' })
+    } catch {
+      return []
+    }
   },
 }))
